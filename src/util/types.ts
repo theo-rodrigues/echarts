@@ -1178,7 +1178,7 @@ export interface VisualOptionUnit {
     symbol?: string
     // TODO Support [number, number]?
     symbolSize?: number
-    color?: ColorString
+    color?: ColorString | ColorString[]
     colorAlpha?: number
     opacity?: number
     colorLightness?: number
