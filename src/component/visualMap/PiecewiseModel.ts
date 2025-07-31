@@ -350,65 +350,73 @@ class PiecewiseModel extends VisualMapModel<PiecewiseVisualMapOption> {
         return representValue;
     }
 
-    getVisualMeta(
-        getColorVisual: (value: number, valueState: VisualState) => string
-    ): VisualMeta {
-        // Do not support category. (category axis is ordinal, numerical)
-        if (this.isCategory()) {
-            return;
-        }
+        getVisualMeta(
+    getColorVisual: (value: number, valueState: VisualState) => string
+): VisualMeta {
+    if (this.isCategory()) {
+        return;
+    }
 
-        const stops: VisualMeta['stops'] = [];
-        const outerColors: VisualMeta['outerColors'] = ['', ''];
-        const visualMapModel = this;
+    const stops: VisualMeta['stops'] = [];
+    const outerColors: VisualMeta['outerColors'] = ['', ''];
+    const visualMapModel = this;
 
-        function setStop(interval: [number, number], valueState?: VisualState) {
-            const representValue = visualMapModel.getRepresentValue({
-                interval: interval
-            }) as number;// Not category
-            if (!valueState) {
-                valueState = visualMapModel.getValueState(representValue);
+    const pieceList = this._pieceList.slice();
+    if (!pieceList.length) {
+        pieceList.push({interval: [-Infinity, Infinity]});
+    }
+    else {
+        let edge = pieceList[0].interval[0];
+        edge !== -Infinity && pieceList.unshift({interval: [-Infinity, edge]});
+        edge = pieceList[pieceList.length - 1].interval[1];
+        edge !== Infinity && pieceList.push({interval: [edge, Infinity]});
+    }
+
+    let curr = -Infinity;
+    zrUtil.each(pieceList, function (piece) {
+        const interval = piece.interval;
+        if (interval) {
+            // handle gap
+            if (interval[0] > curr) {
+                const gapColor = getColorVisual((curr + interval[0]) / 2, 'outOfRange');
+                stops.push({ value: curr, color: gapColor });
+                stops.push({ value: interval[0], color: gapColor });
             }
-            const color = getColorVisual(representValue, valueState);
-            if (interval[0] === -Infinity) {
-                outerColors[0] = color;
-            }
-            else if (interval[1] === Infinity) {
-                outerColors[1] = color;
+            if (piece.visual && Array.isArray(piece.visual.color)) {
+                const countColors = piece.visual.color.length;
+                if (countColors > 1) {
+                    for (let i = 0; i < countColors; i++) {
+                        const relativeValue = i / (countColors - 1);
+                        const value = interval[0] + (interval[1] - interval[0]) * relativeValue;
+                        let color = piece.visual.color[i];
+                        if (visualMapModel.getValueState(value) === 'outOfRange') {
+                            color = getColorVisual(value, 'outOfRange');
+                        }
+                        stops.push({ value: value, color: color});
+                    }
+                }
             }
             else {
-                stops.push(
-                    {value: interval[0], color: color},
-                    {value: interval[1], color: color}
-                );
+                const representValue = visualMapModel.getRepresentValue(piece) as number;
+                const color = getColorVisual(representValue, visualMapModel.getValueState(representValue));
+
+                if (interval[0] === -Infinity) {
+                    outerColors[0] = color;
+                }
+                else if (interval[1] === Infinity) {
+                    outerColors[1] = color;
+                }
+                else {// stops for solidColors
+                    stops.push({ value: interval[0], color: color });
+                    stops.push({ value: interval[1], color: color });
+                }
             }
-        }
 
-        // Suplement
-        const pieceList = this._pieceList.slice();
-        if (!pieceList.length) {
-            pieceList.push({interval: [-Infinity, Infinity]});
+            curr = interval[1];
         }
-        else {
-            let edge = pieceList[0].interval[0];
-            edge !== -Infinity && pieceList.unshift({interval: [-Infinity, edge]});
-            edge = pieceList[pieceList.length - 1].interval[1];
-            edge !== Infinity && pieceList.push({interval: [edge, Infinity]});
-        }
-
-        let curr = -Infinity;
-        zrUtil.each(pieceList, function (piece) {
-            const interval = piece.interval;
-            if (interval) {
-                // Fulfill gap.
-                interval[0] > curr && setStop([curr, interval[0]], 'outOfRange');
-                setStop(interval.slice() as [number, number]);
-                curr = interval[1];
-            }
-        }, this);
-
-        return {stops: stops, outerColors: outerColors};
-    }
+    }, this);
+    return { stops: stops, outerColors: outerColors };
+}
 
 
     static defaultOption = inheritDefaultOption(VisualMapModel.defaultOption, {
