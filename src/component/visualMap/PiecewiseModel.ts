@@ -22,7 +22,7 @@ import VisualMapModel, { VisualMapOption, VisualMeta } from './VisualMapModel';
 import VisualMapping, { VisualMappingOption } from '../../visual/VisualMapping';
 import visualDefault from '../../visual/visualDefault';
 import {reformIntervals} from '../../util/number';
-import { VisualOptionPiecewise, BuiltinVisualProperty } from '../../util/types';
+import { VisualOptionPiecewise, BuiltinVisualProperty, ColorString } from '../../util/types';
 import { Dictionary } from 'zrender/src/core/types';
 import { inheritDefaultOption } from '../../util/component';
 
@@ -350,7 +350,7 @@ class PiecewiseModel extends VisualMapModel<PiecewiseVisualMapOption> {
         return representValue;
     }
 
-        getVisualMeta(
+    getVisualMeta(
     getColorVisual: (value: number, valueState: VisualState) => string
 ): VisualMeta {
     if (this.isCategory()) {
@@ -382,18 +382,18 @@ class PiecewiseModel extends VisualMapModel<PiecewiseVisualMapOption> {
                 stops.push({ value: curr, color: gapColor });
                 stops.push({ value: interval[0], color: gapColor });
             }
-            if (piece.visual && Array.isArray(piece.visual.color)) {
+            if (piece.visual && Array.isArray(piece.visual.color) && piece.visual.color.length > 1) {
                 const countColors = piece.visual.color.length;
-                if (countColors > 1) {
-                    for (let i = 0; i < countColors; i++) {
-                        const relativeValue = i / (countColors - 1);
-                        const value = interval[0] + (interval[1] - interval[0]) * relativeValue;
-                        let color = piece.visual.color[i];
-                        if (visualMapModel.getValueState(value) === 'outOfRange') {
-                            color = getColorVisual(value, 'outOfRange');
-                        }
-                        stops.push({ value: value, color: color});
-                    }
+                const pieceValue = visualMapModel.getRepresentValue(piece) as number;
+                let colors = piece.visual.color as ColorString[];
+                if (visualMapModel.getValueState(pieceValue) === 'outOfRange') {
+                    const outColor = getColorVisual(pieceValue, 'outOfRange');
+                    colors = piece.visual.color.map(() => outColor);
+                }
+                for (let i = 0; i < countColors; i++) {
+                    const relativeValue = i / (countColors - 1);
+                    const value = interval[0] + (interval[1] - interval[0]) * relativeValue;
+                    stops.push({ value: value, color: colors[i]});
                 }
             }
             else {

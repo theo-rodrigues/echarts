@@ -74007,22 +74007,6 @@ var PiecewiseModel2 = class extends VisualMapModel_default {
     const stops = [];
     const outerColors = ["", ""];
     const visualMapModel = this;
-    function setStop(interval, valueState) {
-      const representValue = visualMapModel.getRepresentValue({
-        interval
-      });
-      if (!valueState) {
-        valueState = visualMapModel.getValueState(representValue);
-      }
-      const color4 = getColorVisual2(representValue, valueState);
-      if (interval[0] === -Infinity) {
-        outerColors[0] = color4;
-      } else if (interval[1] === Infinity) {
-        outerColors[1] = color4;
-      } else {
-        stops.push({value: interval[0], color: color4}, {value: interval[1], color: color4});
-      }
-    }
     const pieceList = this._pieceList.slice();
     if (!pieceList.length) {
       pieceList.push({interval: [-Infinity, Infinity]});
@@ -74036,8 +74020,36 @@ var PiecewiseModel2 = class extends VisualMapModel_default {
     each(pieceList, function(piece) {
       const interval = piece.interval;
       if (interval) {
-        interval[0] > curr && setStop([curr, interval[0]], "outOfRange");
-        setStop(interval.slice());
+        if (interval[0] > curr) {
+          const gapColor = getColorVisual2((curr + interval[0]) / 2, "outOfRange");
+          stops.push({value: curr, color: gapColor});
+          stops.push({value: interval[0], color: gapColor});
+        }
+        if (piece.visual && Array.isArray(piece.visual.color) && piece.visual.color.length > 1) {
+          const countColors = piece.visual.color.length;
+          const pieceValue = visualMapModel.getRepresentValue(piece);
+          let colors = piece.visual.color;
+          if (visualMapModel.getValueState(pieceValue) === "outOfRange") {
+            const outColor = getColorVisual2(pieceValue, "outOfRange");
+            colors = piece.visual.color.map(() => outColor);
+          }
+          for (let i = 0; i < countColors; i++) {
+            const relativeValue = i / (countColors - 1);
+            const value = interval[0] + (interval[1] - interval[0]) * relativeValue;
+            stops.push({value, color: colors[i]});
+          }
+        } else {
+          const representValue = visualMapModel.getRepresentValue(piece);
+          const color4 = getColorVisual2(representValue, visualMapModel.getValueState(representValue));
+          if (interval[0] === -Infinity) {
+            outerColors[0] = color4;
+          } else if (interval[1] === Infinity) {
+            outerColors[1] = color4;
+          } else {
+            stops.push({value: interval[0], color: color4});
+            stops.push({value: interval[1], color: color4});
+          }
+        }
         curr = interval[1];
       }
     }, this);

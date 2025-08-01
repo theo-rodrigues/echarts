@@ -222,9 +222,10 @@ under the License.
                         type: 'piecewise',
                         orient: 'horizontal',
                         left: 'center',
+
                         pieces: [
-                            {min: 100, max: 150, color: ['red', 'blue']},
-                            {min: 0, max: 100, color: ['green', 'yellow']}
+                            {gt: 10, lte: 15, label: 'weixian', symbol: 'emptyCircle', color: ['red', 'blue', 'orange']},
+                            {gte: 5, lt: 10, label: 'weixian', symbol: 'emptyCircle', color: ['green', 'yellow']}
                         ],
                         outOfRange: {
                             color: '#ccc',
@@ -246,7 +247,7 @@ under the License.
                         {
                             name:'最高气温',
                             type:'line',
-                            data:[20, 40, 150, 90, 50, 130, 100]
+                            data:[12, 6, 15, 10, 5, 13, 10]
                         }
                     ]
                 };

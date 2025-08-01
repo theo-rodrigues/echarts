@@ -88613,36 +88613,12 @@ var PiecewiseModel = /** @class */function (_super) {
     return representValue;
   };
   PiecewiseModel.prototype.getVisualMeta = function (getColorVisual) {
-    // Do not support category. (category axis is ordinal, numerical)
     if (this.isCategory()) {
       return;
     }
     var stops = [];
     var outerColors = ['', ''];
     var visualMapModel = this;
-    function setStop(interval, valueState) {
-      var representValue = visualMapModel.getRepresentValue({
-        interval: interval
-      }); // Not category
-      if (!valueState) {
-        valueState = visualMapModel.getValueState(representValue);
-      }
-      var color = getColorVisual(representValue, valueState);
-      if (interval[0] === -Infinity) {
-        outerColors[0] = color;
-      } else if (interval[1] === Infinity) {
-        outerColors[1] = color;
-      } else {
-        stops.push({
-          value: interval[0],
-          color: color
-        }, {
-          value: interval[1],
-          color: color
-        });
-      }
-    }
-    // Suplement
     var pieceList = this._pieceList.slice();
     if (!pieceList.length) {
       pieceList.push({
@@ -88662,9 +88638,55 @@ var PiecewiseModel = /** @class */function (_super) {
     each(pieceList, function (piece) {
       var interval = piece.interval;
       if (interval) {
-        // Fulfill gap.
-        interval[0] > curr && setStop([curr, interval[0]], 'outOfRange');
-        setStop(interval.slice());
+        // handle gap
+        if (interval[0] > curr) {
+          var gapColor = getColorVisual((curr + interval[0]) / 2, 'outOfRange');
+          stops.push({
+            value: curr,
+            color: gapColor
+          });
+          stops.push({
+            value: interval[0],
+            color: gapColor
+          });
+        }
+        if (piece.visual && Array.isArray(piece.visual.color) && piece.visual.color.length > 1) {
+          var countColors = piece.visual.color.length;
+          var pieceValue = visualMapModel.getRepresentValue(piece);
+          var colors = piece.visual.color;
+          if (visualMapModel.getValueState(pieceValue) === 'outOfRange') {
+            var outColor_1 = getColorVisual(pieceValue, 'outOfRange');
+            colors = piece.visual.color.map(function () {
+              return outColor_1;
+            });
+          }
+          for (var i = 0; i < countColors; i++) {
+            var relativeValue = i / (countColors - 1);
+            var value = interval[0] + (interval[1] - interval[0]) * relativeValue;
+            stops.push({
+              value: value,
+              color: colors[i]
+            });
+          }
+        } else {
+          var representValue = visualMapModel.getRepresentValue(piece);
+          var color = getColorVisual(representValue, visualMapModel.getValueState(representValue));
+          if (interval[0] === -Infinity) {
+            outerColors[0] = color;
+          } else if (interval[1] === Infinity) {
+            outerColors[1] = color;
+          } else {
+            // stops for solidColors
+            stops.push({
+              value: interval[0],
+              color: color
+            });
+            stops.push({
+              value: interval[1],
+              color: color
+            });
+          }
+        }
         curr = interval[1];
       }
     }, this);
