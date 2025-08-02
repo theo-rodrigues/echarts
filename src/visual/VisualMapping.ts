@@ -685,6 +685,20 @@ function getSpecifiedVisual(this: VisualMapping, value: number) {
         const pieceIndex = VisualMapping.findPieceIndex(value, pieceList);
         const piece = pieceList[pieceIndex];
         if (piece && piece.visual) {
+            if (this.type === 'color' && Array.isArray(piece.visual[this.type])) {
+            const normalized = linearMap(value, piece.interval, [0, 1], true);
+            const parsedValue = zrUtil.map(piece.visual[this.type] as string[], function (item: string) {
+                const color = zrColor.parse(item);
+                if (!color && __DEV__) {
+                    warn(`'${item}' is an illegal color, fallback to '#000000'`, true);
+                }
+                return color || [0, 0, 0, 1];
+                });
+                return zrColor.stringify(
+                    zrColor.fastLerp(normalized, parsedValue),
+                    'rgba'
+                );
+            }
             return piece.visual[this.type];
         }
     }

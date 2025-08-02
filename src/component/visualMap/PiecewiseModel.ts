@@ -22,7 +22,7 @@ import VisualMapModel, { VisualMapOption, VisualMeta } from './VisualMapModel';
 import VisualMapping, { VisualMappingOption } from '../../visual/VisualMapping';
 import visualDefault from '../../visual/visualDefault';
 import {reformIntervals} from '../../util/number';
-import { VisualOptionPiecewise, BuiltinVisualProperty } from '../../util/types';
+import { VisualOptionPiecewise, BuiltinVisualProperty, ColorString } from '../../util/types';
 import { Dictionary } from 'zrender/src/core/types';
 import { inheritDefaultOption } from '../../util/component';
 
@@ -351,65 +351,78 @@ class PiecewiseModel extends VisualMapModel<PiecewiseVisualMapOption> {
     }
 
     getVisualMeta(
-        getColorVisual: (value: number, valueState: VisualState) => string
-    ): VisualMeta {
-        // Do not support category. (category axis is ordinal, numerical)
-        if (this.isCategory()) {
-            return;
-        }
-
-        const stops: VisualMeta['stops'] = [];
-        const outerColors: VisualMeta['outerColors'] = ['', ''];
-        const visualMapModel = this;
-
-        function setStop(interval: [number, number], valueState?: VisualState) {
-            const representValue = visualMapModel.getRepresentValue({
-                interval: interval
-            }) as number;// Not category
-            if (!valueState) {
-                valueState = visualMapModel.getValueState(representValue);
-            }
-            const color = getColorVisual(representValue, valueState);
-            if (interval[0] === -Infinity) {
-                outerColors[0] = color;
-            }
-            else if (interval[1] === Infinity) {
-                outerColors[1] = color;
-            }
-            else {
-                stops.push(
-                    {value: interval[0], color: color},
-                    {value: interval[1], color: color}
-                );
-            }
-        }
-
-        // Suplement
-        const pieceList = this._pieceList.slice();
-        if (!pieceList.length) {
-            pieceList.push({interval: [-Infinity, Infinity]});
-        }
-        else {
-            let edge = pieceList[0].interval[0];
-            edge !== -Infinity && pieceList.unshift({interval: [-Infinity, edge]});
-            edge = pieceList[pieceList.length - 1].interval[1];
-            edge !== Infinity && pieceList.push({interval: [edge, Infinity]});
-        }
-
-        let curr = -Infinity;
-        zrUtil.each(pieceList, function (piece) {
-            const interval = piece.interval;
-            if (interval) {
-                // Fulfill gap.
-                interval[0] > curr && setStop([curr, interval[0]], 'outOfRange');
-                setStop(interval.slice() as [number, number]);
-                curr = interval[1];
-            }
-        }, this);
-
-        return {stops: stops, outerColors: outerColors};
+    getColorVisual: (value: number, valueState: VisualState) => string
+): VisualMeta {
+    if (this.isCategory()) {
+        return;
     }
 
+    const stops: VisualMeta['stops'] = [];
+    const outerColors: VisualMeta['outerColors'] = ['', ''];
+    const visualMapModel = this;
+
+    const pieceList = this._pieceList.slice();
+    if (!pieceList.length) {
+        pieceList.push({interval: [-Infinity, Infinity]});
+    }
+    else {
+        let edge = pieceList[0].interval[0];
+        edge !== -Infinity && pieceList.unshift({interval: [-Infinity, edge]});
+        edge = pieceList[pieceList.length - 1].interval[1];
+        edge !== Infinity && pieceList.push({interval: [edge, Infinity]});
+    }
+
+    let curr = -Infinity;
+    zrUtil.each(pieceList, function (piece) {
+        const interval = piece.interval;
+        if (interval) {
+            // handle gap
+            if (interval[0] > curr) {
+                const gapColor = getColorVisual((curr + interval[0]) / 2, 'outOfRange');
+                stops.push({ value: curr, color: gapColor });
+                stops.push({ value: interval[0], color: gapColor });
+            }
+            if (piece.visual && Array.isArray(piece.visual.color) && piece.visual.color.length > 1) {
+                const pieceValue = visualMapModel.getRepresentValue(piece) as number;
+                let colors = piece.visual.color as ColorString[];
+                if (this.option.dimension === 0 && piece.visual.color.length > interval[1] - interval[0]) {
+                    // for dimension: 0
+                    // do not support more colors then index
+                    colors = colors.slice(0, (interval[1] - interval[0]) + 1);
+                }
+                if (visualMapModel.getValueState(pieceValue) === 'outOfRange') {
+                    const outColor = getColorVisual(pieceValue, 'outOfRange');
+                    colors = piece.visual.color.map(() => outColor);
+                }
+                const countColors = colors.length;
+                for (let i = 0; i < countColors; i++) {
+                    const relativeValue = i / (countColors - 1);
+                    const value = interval[0] + (interval[1] - interval[0]) * relativeValue;
+                    stops.push({ value: value, color: colors[i]});
+                }
+            }
+            else {
+                const representValue = visualMapModel.getRepresentValue(piece) as number;
+                const color = getColorVisual(representValue, visualMapModel.getValueState(representValue));
+
+                if (interval[0] === -Infinity) {
+                    outerColors[0] = color;
+                }
+                else if (interval[1] === Infinity) {
+                    outerColors[1] = color;
+                }
+                else {
+                    // stops for solidColors
+                    stops.push({ value: interval[0], color: color });
+                    stops.push({ value: interval[1], color: color });
+                }
+            }
+
+            curr = interval[1];
+        }
+    }, this);
+    return { stops: stops, outerColors: outerColors };
+}
 
     static defaultOption = inheritDefaultOption(VisualMapModel.defaultOption, {
         selected: null,
