@@ -56268,6 +56268,17 @@
         var pieceIndex = VisualMapping.findPieceIndex(value, pieceList);
         var piece = pieceList[pieceIndex];
         if (piece && piece.visual) {
+          if (this.type === 'color' && Array.isArray(piece.visual[this.type])) {
+            var normalized = linearMap(value, piece.interval, [0, 1], true);
+            var parsedValue = map(piece.visual[this.type], function (item) {
+              var color$1 = parse(item);
+              if (!color$1 && "development" !== 'production') {
+                warn("'" + item + "' is an illegal color, fallback to '#000000'", true);
+              }
+              return color$1 || [0, 0, 0, 1];
+            });
+            return stringify(fastLerp(normalized, parsedValue), 'rgba');
+          }
           return piece.visual[this.type];
         }
       }
