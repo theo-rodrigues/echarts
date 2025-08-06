@@ -67,7 +67,7 @@ class PiecewiseVisualMapView extends VisualMapView {
             const representValue = visualMapModel.getRepresentValue(piece) as number;
 
             this._createItemSymbol(
-                itemGroup, representValue, [0, 0, itemSize[0], itemSize[1]], silent
+                itemGroup, representValue, [0, 0, itemSize[0], itemSize[1]], silent, item
             );
 
             if (showLabel) {
@@ -202,13 +202,33 @@ class PiecewiseVisualMapView extends VisualMapView {
         representValue: number,
         shapeParam: number[],
         silent?: boolean,
+        item?: { piece: VisualMappingOption['pieceList'][number], indexInModelPieceList: number }
     ) {
+        let color;
+        if (item && Array.isArray(item.piece.visual.color)) {
+            let colors = item.piece.visual.color;
+            const stops = [];
+            const countColors = colors.length;
+            const pieceValue = this.visualMapModel.getRepresentValue(item.piece) as number;
+
+            if (this.visualMapModel.getValueState(pieceValue) === 'outOfRange') {
+                const outColor = this.visualMapModel.get('outOfRange');
+                colors = colors.map(() => outColor.color);
+            }
+            for (let i = 0; i < countColors; i++) {
+                    const relativeValue = i / (countColors - 1);
+                    stops.push({ offset: relativeValue, color: colors[i]});
+                }
+            color = new graphic.LinearGradient(0, 0, 0, 1, stops);
+        }
+        else {
+            color = this.getControllerVisual(representValue, 'color') as string;
+        }
         const itemSymbol = createSymbol(
             // symbol will be string
             this.getControllerVisual(representValue, 'symbol') as string,
             shapeParam[0], shapeParam[1], shapeParam[2], shapeParam[3],
-            // color will be string
-            this.getControllerVisual(representValue, 'color') as string
+            color
         );
         itemSymbol.silent = silent;
         group.add(itemSymbol);
