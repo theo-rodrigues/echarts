@@ -388,6 +388,9 @@ class PiecewiseModel extends VisualMapModel<PiecewiseVisualMapOption> {
                 if (this.option.dimension === 0 && piece.visual.color.length > interval[1] - interval[0]) {
                     // for dimension: 0
                     // do not support more colors then index
+                    console.warn(
+                        `[ECharts] Piece [${interval[0]}, ${interval[1]}]: has more colors than available indices`
+                    );
                     colors = colors.slice(0, (interval[1] - interval[0]) + 1);
                 }
                 if (visualMapModel.getValueState(pieceValue) === 'outOfRange') {

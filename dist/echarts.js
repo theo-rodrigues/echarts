@@ -88662,9 +88662,8 @@
               if (this.option.dimension === 0 && piece.visual.color.length > interval[1] - interval[0]) {
                 // for dimension: 0
                 // do not support more colors then index
-                // const key = this.getSelectedMapKey(piece);
-                // this.option.selected[key] = false;
-                console.warn("Too many colors for category index range\n                        [" + interval[0] + ", " + interval[1] + "].");
+                console.warn("[ECharts] Piece [" + interval[0] + ", " + interval[1] + "]: has more colors than available indices");
+                colors = colors.slice(0, interval[1] - interval[0] + 1);
               }
               if (visualMapModel.getValueState(pieceValue) === 'outOfRange') {
                 var outColor_1 = getColorVisual(pieceValue, 'outOfRange');
@@ -88982,7 +88981,7 @@
       };
       PiecewiseVisualMapView.prototype._createItemSymbol = function (group, representValue, shapeParam, silent, item) {
         var color;
-        if (item && Array.isArray(item.piece.visual.color)) {
+        if (item && item.piece.visual && Array.isArray(item.piece.visual.color)) {
           var colors = item.piece.visual.color;
           var stops = [];
           var countColors = colors.length;

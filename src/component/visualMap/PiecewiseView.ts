@@ -205,7 +205,7 @@ class PiecewiseVisualMapView extends VisualMapView {
         item?: { piece: VisualMappingOption['pieceList'][number], indexInModelPieceList: number }
     ) {
         let color;
-        if (item && Array.isArray(item.piece.visual.color)) {
+        if (item && item.piece.visual && Array.isArray(item.piece.visual.color)) {
             let colors = item.piece.visual.color;
             const stops = [];
             const countColors = colors.length;
